@@ -2,6 +2,12 @@
 <!DOCTYPE mycat:schema SYSTEM "schema.dtd">
 <mycat:schema xmlns:mycat="http://io.mycat/">
 
+	<schema name="zhenai_mail" checkSQLschema="true" dataNode="dn_zhenai_mail_0">
+		<!--rule与dataNode配套-->
+		<!--tbRule与subTables配套-->
+		<table name="MailContent" rule="mail-content-db" dataNode="dn_zhenai_mail_$0-3" tbRule="mail-content-tb" subTables="MailContent_$000-999" />
+	</schema>
+
 	<schema name="TESTDB" checkSQLschema="false" sqlMaxLimit="100">
 		<!-- auto sharding by id (long) -->
 		<table name="travelrecord" dataNode="dn1,dn2,dn3" rule="auto-sharding-long" />

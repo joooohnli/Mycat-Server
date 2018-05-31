@@ -24,10 +24,8 @@
 package io.mycat.config.model;
 
 import java.util.*;
-import java.util.concurrent.locks.ReentrantLock;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 
-import com.alibaba.druid.sql.ast.SQLDataType;
 import com.alibaba.druid.sql.ast.statement.SQLTableElement;
 import io.mycat.config.model.rule.RuleConfig;
 import io.mycat.util.SplitUtil;
@@ -47,6 +45,8 @@ public class TableConfig {
 	private final ArrayList<String> dataNodes;
 	private final ArrayList<String> distTables;
 	private final RuleConfig rule;
+	// 新增表rule，之前的rule专门用来配置dataNode
+	private final RuleConfig tbRule;
 	private final String partitionColumn;
 	private final boolean ruleRequired;
 	private final TableConfig parentTC;
@@ -65,10 +65,11 @@ public class TableConfig {
 	private ReentrantReadWriteLock reentrantReadWriteLock = new ReentrantReadWriteLock(false);
 
 
-	public TableConfig(String name, String primaryKey, boolean autoIncrement,boolean needAddLimit, int tableType,
-			String dataNode,Set<String> dbType, RuleConfig rule, boolean ruleRequired,
-			TableConfig parentTC, boolean isChildTable, String joinKey,
-			String parentKey,String subTables) {
+	public TableConfig(String name, String primaryKey, boolean autoIncrement, boolean needAddLimit,
+					   int tableType,
+					   String dataNode, Set<String> dbType, RuleConfig rule, boolean ruleRequired,
+					   TableConfig parentTC, boolean isChildTable, String joinKey,
+					   String parentKey, String subTables, RuleConfig tbRule) {
 		if (name == null) {
 			throw new IllegalArgumentException("table name is null");
 		} else if (dataNode == null) {
@@ -84,7 +85,7 @@ public class TableConfig {
 		}
 
 		this.name = name.toUpperCase();
-		
+
 		String theDataNodes[] = SplitUtil.split(dataNode, ',', '$', '-');
 		if (theDataNodes == null || theDataNodes.length <= 0) {
 			throw new IllegalArgumentException("invalid table dataNodes: " + dataNode);
@@ -93,7 +94,7 @@ public class TableConfig {
 		for (String dn : theDataNodes) {
 			dataNodes.add(dn);
 		}
-		
+
 		if(subTables!=null && !subTables.equals("")){
 			String sTables[] = SplitUtil.split(subTables, ',', '$', '-');
 			if (sTables == null || sTables.length <= 0) {
@@ -105,8 +106,11 @@ public class TableConfig {
 			}
 		}else{
 			this.distTables = new ArrayList<String>();
-		}	
-		
+		}
+
+		//todo subtables need tbRule not null
+
+		this.tbRule=tbRule;
 		this.rule = rule;
 		this.partitionColumn = (rule == null) ? null : rule.getColumn();
 		partionKeyIsPrimaryKey=(partitionColumn==null)?primaryKey==null:partitionColumn.equals(primaryKey);
@@ -128,12 +132,12 @@ public class TableConfig {
 		return primaryKey;
 	}
 
-    public Set<String> getDbTypes()
-    {
-        return dbTypes;
-    }
+	public Set<String> getDbTypes()
+	{
+		return dbTypes;
+	}
 
-    public boolean isAutoIncrement() {
+	public boolean isAutoIncrement() {
 		return autoIncrement;
 	}
 
@@ -245,6 +249,10 @@ public class TableConfig {
 	public String getRandomDataNode() {
 		int index = Math.abs(rand.nextInt(Integer.MAX_VALUE)) % dataNodes.size();
 		return dataNodes.get(index);
+	}
+
+	public RuleConfig getTbRule() {
+		return tbRule;
 	}
 
 	public boolean isRuleRequired() {

@@ -58,9 +58,9 @@ import io.mycat.util.SplitUtil;
  */
 @SuppressWarnings("unchecked")
 public class XMLSchemaLoader implements SchemaLoader {
-	
+
 	private static final Logger LOGGER = LoggerFactory.getLogger(XMLSchemaLoader.class);
-	
+
 	private final static String DEFAULT_DTD = "/schema.dtd";
 	private final static String DEFAULT_XML = "/schema.xml";
 
@@ -125,14 +125,14 @@ public class XMLSchemaLoader implements SchemaLoader {
 		} catch (Exception e) {
 			throw new ConfigException(e);
 		} finally {
-			
+
 			if (dtd != null) {
 				try {
 					dtd.close();
 				} catch (IOException e) {
 				}
 			}
-			
+
 			if (xml != null) {
 				try {
 					xml.close();
@@ -156,7 +156,7 @@ public class XMLSchemaLoader implements SchemaLoader {
 			if (sqlMaxLimitStr != null && !sqlMaxLimitStr.isEmpty()) {
 				sqlMaxLimit = Integer.parseInt(sqlMaxLimitStr);
 			}
-			
+
 			// check dataNode already exists or not,看schema标签中是否有datanode
 			String defaultDbType = null;
 			//校验检查并添加dataNode
@@ -216,89 +216,89 @@ public class XMLSchemaLoader implements SchemaLoader {
 		}
 	}
 
-	
+
 	/**
 	 * 处理动态日期表, 支持 YYYYMM、YYYYMMDD 两种格式
-	 * 
-	 * YYYYMM格式： 	  yyyymm,2015,01,60   
+	 *
+	 * YYYYMM格式： 	  yyyymm,2015,01,60
 	 * YYYYMMDD格式:  yyyymmdd,2015,01,10,50
-	 * 
+	 *
 	 * @param tableNameElement
 	 * @param tableNameSuffixElement
 	 * @return
 	 */
 	private String doTableNameSuffix(String tableNameElement, String tableNameSuffixElement) {
-		
+
 		String newTableName = tableNameElement;
-		
-		String[] params = tableNameSuffixElement.split(",");			
-		String suffixFormat = params[0].toUpperCase();		
+
+		String[] params = tableNameSuffixElement.split(",");
+		String suffixFormat = params[0].toUpperCase();
 		if ( suffixFormat.equals("YYYYMM") ) {
-			
+
 			//读取参数
 			int yyyy = Integer.parseInt( params[1] );
-			int mm = Integer.parseInt( params[2] );					
+			int mm = Integer.parseInt( params[2] );
 			int mmEndIdx =  Integer.parseInt( params[3] );
-			
+
 			//日期处理
-			SimpleDateFormat yyyyMMSDF = new SimpleDateFormat("yyyyMM"); 
-			
+			SimpleDateFormat yyyyMMSDF = new SimpleDateFormat("yyyyMM");
+
 			Calendar cal = Calendar.getInstance();
 			cal.set(Calendar.YEAR, yyyy );
 			cal.set(Calendar.MONTH, mm - 1 );
 			cal.set(Calendar.DATE, 0 );
-			
+
 			//表名改写
 			StringBuffer tableNameBuffer = new StringBuffer();
-			for(int mmIdx = 0; mmIdx <= mmEndIdx; mmIdx++) {						
+			for(int mmIdx = 0; mmIdx <= mmEndIdx; mmIdx++) {
 				tableNameBuffer.append( tableNameElement );
-				tableNameBuffer.append( yyyyMMSDF.format(cal.getTime()) );							
+				tableNameBuffer.append( yyyyMMSDF.format(cal.getTime()) );
 				cal.add(Calendar.MONTH, 1);
-				
+
 				if ( mmIdx != mmEndIdx) {
 					tableNameBuffer.append(",");
-				}						
-			}					
+				}
+			}
 			newTableName = tableNameBuffer.toString();
 
 		} else if ( suffixFormat.equals("YYYYMMDD") ) {
-			
+
 			//读取参数
 			int yyyy = Integer.parseInt( params[1] );
 			int mm = Integer.parseInt( params[2] );
 			int dd =  Integer.parseInt( params[3] );
 			int ddEndIdx =  Integer.parseInt( params[4] );
-			
+
 			//日期处理
-			SimpleDateFormat yyyyMMddSDF = new SimpleDateFormat("yyyyMMdd"); 
-			
+			SimpleDateFormat yyyyMMddSDF = new SimpleDateFormat("yyyyMMdd");
+
 			Calendar cal = Calendar.getInstance();
 			cal.set(Calendar.YEAR, yyyy );
 			cal.set(Calendar.MONTH, mm - 1 );
 			cal.set(Calendar.DATE, dd );
-			
+
 			//表名改写
 			StringBuffer tableNameBuffer = new StringBuffer();
-			for(int ddIdx = 0; ddIdx <= ddEndIdx; ddIdx++) {					
+			for(int ddIdx = 0; ddIdx <= ddEndIdx; ddIdx++) {
 				tableNameBuffer.append( tableNameElement );
 				tableNameBuffer.append( yyyyMMddSDF.format(cal.getTime()) );
-				
-				cal.add(Calendar.DATE, 1);	
-				
+
+				cal.add(Calendar.DATE, 1);
+
 				if ( ddIdx != ddEndIdx) {
 					tableNameBuffer.append(",");
 				}
-			}					
+			}
 			newTableName = tableNameBuffer.toString();
-		}				
-		return newTableName;		
+		}
+		return newTableName;
 	}
-	
+
 
 	private Map<String, TableConfig> loadTables(Element node) {
-		
+
 		// Map<String, TableConfig> tables = new HashMap<String, TableConfig>();
-		
+
 		// 支持表名中包含引号[`] BEN GONG
 		Map<String, TableConfig> tables = new TableConfigMap();
 		NodeList nodeList = node.getElementsByTagName("table");
@@ -308,8 +308,8 @@ public class XMLSchemaLoader implements SchemaLoader {
 
 			//TODO:路由, 增加对动态日期表的支持
 			String tableNameSuffixElement = tableElement.getAttribute("nameSuffix").toUpperCase();
-			if ( !"".equals( tableNameSuffixElement ) ) {				
-				
+			if ( !"".equals( tableNameSuffixElement ) ) {
+
 				if( tableNameElement.split(",").length > 1 ) {
 					throw new ConfigException("nameSuffix " + tableNameSuffixElement + ", require name parameter cannot multiple breaks!");
 				}
@@ -345,7 +345,16 @@ public class XMLSchemaLoader implements SchemaLoader {
 					throw new ConfigException("rule " + ruleName + " is not found!");
 				}
 			}
-			
+
+			TableRuleConfig tbRule = null;
+			if (tableElement.hasAttribute("tbRule")) {
+				String ruleName = tableElement.getAttribute("tbRule");
+				tbRule = tableRules.get(ruleName);
+				if (tbRule == null) {
+					throw new ConfigException("tbRule " + ruleName + " is not found!");
+				}
+			}
+
 			boolean ruleRequired = false;
 			//记录是否绑定有分片规则
 			if (tableElement.hasAttribute("ruleRequired")) {
@@ -363,39 +372,39 @@ public class XMLSchemaLoader implements SchemaLoader {
 			}
 			//分表功能
 			String subTables = tableElement.getAttribute("subTables");
-			
+
 			for (int j = 0; j < tableNames.length; j++) {
 
 				String tableName = tableNames[j];
 				TableRuleConfig	tableRuleConfig=tableRule ;
-				  if(tableRuleConfig!=null) {
-				  	//对于实现TableRuleAware的function进行特殊处理  根据每个表新建个实例
-					  RuleConfig rule= tableRuleConfig.getRule();
-					  if(rule.getRuleAlgorithm() instanceof TableRuleAware)  {
-						  tableRuleConfig = (TableRuleConfig) ObjectUtil.copyObject(tableRuleConfig);
-						  tableRules.remove(tableRuleConfig.getName())   ;
-						  String newRuleName = tableRuleConfig.getName() + "_" + tableName;
-						  tableRuleConfig. setName(newRuleName);
-						  TableRuleAware tableRuleAware= (TableRuleAware) tableRuleConfig.getRule().getRuleAlgorithm();
-						  tableRuleAware.setRuleName(newRuleName);
-						  tableRuleAware.setTableName(tableName);
-						  tableRuleConfig.getRule().getRuleAlgorithm().init();
-						  tableRules.put(newRuleName,tableRuleConfig);
-					  }
-				  }
+				if(tableRuleConfig!=null) {
+					//对于实现TableRuleAware的function进行特殊处理  根据每个表新建个实例
+					RuleConfig rule= tableRuleConfig.getRule();
+					if(rule.getRuleAlgorithm() instanceof TableRuleAware)  {
+						tableRuleConfig = (TableRuleConfig) ObjectUtil.copyObject(tableRuleConfig);
+						tableRules.remove(tableRuleConfig.getName())   ;
+						String newRuleName = tableRuleConfig.getName() + "_" + tableName;
+						tableRuleConfig. setName(newRuleName);
+						TableRuleAware tableRuleAware= (TableRuleAware) tableRuleConfig.getRule().getRuleAlgorithm();
+						tableRuleAware.setRuleName(newRuleName);
+						tableRuleAware.setTableName(tableName);
+						tableRuleConfig.getRule().getRuleAlgorithm().init();
+						tableRules.put(newRuleName,tableRuleConfig);
+					}
+				}
 
 				TableConfig table = new TableConfig(tableName, primaryKey,
 						autoIncrement, needAddLimit, tableType, dataNode,
 						getDbType(dataNode),
 						(tableRuleConfig != null) ? tableRuleConfig.getRule() : null,
-						ruleRequired, null, false, null, null,subTables);
-				
+						ruleRequired, null, false, null, null,subTables, tbRule!=null?tbRule.getRule():null);
+
 				checkDataNodeExists(table.getDataNodes());
 				// 检查分片表分片规则配置是否合法
 				if(table.getRule() != null) {
 					checkRuleSuitTable(table);
 				}
-				
+
 				if (distTableDns) {
 					distributeDataNodes(table.getDataNodes());
 				}
@@ -434,7 +443,7 @@ public class XMLSchemaLoader implements SchemaLoader {
 			hostDns.add(dn);
 			newDataNodeMap.put(host, hostDns);
 		}
-		
+
 		ArrayList<String> result = new ArrayList<String>(theDataNodes.size());
 		boolean hasData = true;
 		while (hasData) {
@@ -484,8 +493,8 @@ public class XMLSchemaLoader implements SchemaLoader {
 	}
 
 	private void processChildTables(Map<String, TableConfig> tables,
-			TableConfig parentTable, String dataNodes, Element tableNode) {
-		
+									TableConfig parentTable, String dataNodes, Element tableNode) {
+
 		// parse child tables
 		NodeList childNodeList = tableNode.getChildNodes();
 		for (int j = 0; j < childNodeList.getLength(); j++) {
@@ -514,8 +523,8 @@ public class XMLSchemaLoader implements SchemaLoader {
 					autoIncrement, needAddLimit,
 					TableConfig.TYPE_GLOBAL_DEFAULT, dataNodes,
 					getDbType(dataNodes), null, false, parentTable, true,
-					joinKey, parentKey, subTables);
-			
+					joinKey, parentKey, subTables, null);
+
 			if (tables.containsKey(table.getName())) {
 				throw new ConfigException("table " + table.getName() + " duplicated!");
 			}
@@ -535,21 +544,21 @@ public class XMLSchemaLoader implements SchemaLoader {
 			}
 		}
 	}
-	
+
 	/**
 	 * 检查分片表分片规则配置, 目前主要检查分片表分片算法定义与分片dataNode是否匹配<br>
 	 * 例如分片表定义如下:<br>
 	 * {@code
 	 * <table name="hotnews" primaryKey="ID" autoIncrement="true" dataNode="dn1,dn2"
-			   rule="mod-long" />
+	rule="mod-long" />
 	 * }
 	 * <br>
 	 * 分片算法如下:<br>
 	 * {@code
 	 * <function name="mod-long" class="io.mycat.route.function.PartitionByMod">
-		<!-- how many data nodes -->
-		<property name="count">3</property>
-	   </function>
+	<!-- how many data nodes -->
+	<property name="count">3</property>
+	</function>
 	 * }
 	 * <br>
 	 * shard table datanode(2) < function count(3) 此时检测为不匹配
@@ -568,7 +577,7 @@ public class XMLSchemaLoader implements SchemaLoader {
 				break;
 			case 1:
 				// 有些节点是多余的,给出warn log
-				LOGGER.warn("table conf : table [ {} ] rule function [ {} ] partition size : {} < table datanode size : {} , this cause some datanode to be redundant", 
+				LOGGER.warn("table conf : table [ {} ] rule function [ {} ] partition size : {} < table datanode size : {} , this cause some datanode to be redundant",
 						new String[]{
 								tableConf.getName(),
 								tableConf.getRule().getFunctionName(),
@@ -602,10 +611,10 @@ public class XMLSchemaLoader implements SchemaLoader {
 
 			if (dnNames.length > 1 && dnNames.length != databases.length * hostStrings.length) {
 				throw new ConfigException("dataNode " + dnNamePre
-								+ " define error ,dnNames.length must be=databases.length*hostStrings.length");
+						+ " define error ,dnNames.length must be=databases.length*hostStrings.length");
 			}
 			if (dnNames.length > 1) {
-				
+
 				List<String[]> mhdList = mergerHostDatabase(hostStrings, databases);
 				for (int k = 0; k < dnNames.length; k++) {
 					String[] hd = mhdList.get(k);
@@ -626,8 +635,8 @@ public class XMLSchemaLoader implements SchemaLoader {
 	 * 匹配DataHost和Database，每个DataHost拥有每个Database名字
 	 * @param hostStrings
 	 * @param databases
-     * @return
-     */
+	 * @return
+	 */
 	private List<String[]> mergerHostDatabase(String[] hostStrings,	String[] databases) {
 		List<String[]> mhdList = new ArrayList<>();
 		for (int i = 0; i < hostStrings.length; i++) {
@@ -644,12 +653,12 @@ public class XMLSchemaLoader implements SchemaLoader {
 	}
 
 	private void createDataNode(String dnName, String database, String host) {
-		
-		DataNodeConfig conf = new DataNodeConfig(dnName, database, host);		
+
+		DataNodeConfig conf = new DataNodeConfig(dnName, database, host);
 		if (dataNodes.containsKey(conf.getName())) {
 			throw new ConfigException("dataNode " + conf.getName() + " duplicated!");
 		}
-		
+
 		if (!dataHosts.containsKey(host)) {
 			throw new ConfigException("dataNode " + dnName + " reference dataHost:" + host + " not exists!");
 		}
@@ -661,18 +670,18 @@ public class XMLSchemaLoader implements SchemaLoader {
 	}
 
 	private DBHostConfig createDBHostConf(String dataHost, Element node,
-			String dbType, String dbDriver, int maxCon, int minCon, String filters, long logTime) {
-		
+										  String dbType, String dbDriver, int maxCon, int minCon, String filters, long logTime) {
+
 		String nodeHost = node.getAttribute("host");
 		String nodeUrl = node.getAttribute("url");
 		String user = node.getAttribute("user");
 		String password = node.getAttribute("password");
 		String usingDecrypt = node.getAttribute("usingDecrypt");
 		String passwordEncryty= DecryptUtil.DBHostDecrypt(usingDecrypt, nodeHost, user, password);
-		
+
 		String weightStr = node.getAttribute("weight");
 		int weight = "".equals(weightStr) ? PhysicalDBPool.WEIGHT : Integer.parseInt(weightStr) ;
-		
+
 		String ip = null;
 		int port = 0;
 		if (empty(nodeHost) || empty(nodeUrl) || empty(user)) {
@@ -710,7 +719,7 @@ public class XMLSchemaLoader implements SchemaLoader {
 	private void loadDataHosts(Element root) {
 		NodeList list = root.getElementsByTagName("dataHost");
 		for (int i = 0, n = list.getLength(); i < n; ++i) {
-			
+
 			Element element = (Element) list.item(i);
 			String name = element.getAttribute("name");
 			//判断是否重复
@@ -742,7 +751,7 @@ public class XMLSchemaLoader implements SchemaLoader {
 			//读取从延迟界限
 			String slaveThresholdStr = element.getAttribute("slaveThreshold");
 			int slaveThreshold = slaveThresholdStr.equals("") ? -1 : Integer.parseInt(slaveThresholdStr);
-			
+
 			//如果 tempReadHostAvailable 设置大于 0 则表示写主机如果挂掉， 临时的读服务依然可用
 			String tempReadHostAvailableStr = element.getAttribute("tempReadHostAvailable");
 			boolean tempReadHostAvailable = !tempReadHostAvailableStr.equals("") && Integer.parseInt(tempReadHostAvailableStr) > 0;
@@ -786,9 +795,9 @@ public class XMLSchemaLoader implements SchemaLoader {
 				}
 			}
 
-			DataHostConfig hostConf = new DataHostConfig(name, dbType, dbDriver, 
-					writeDbConfs, readHostsMap, switchType, slaveThreshold, tempReadHostAvailable);		
-			
+			DataHostConfig hostConf = new DataHostConfig(name, dbType, dbDriver,
+					writeDbConfs, readHostsMap, switchType, slaveThreshold, tempReadHostAvailable);
+
 			hostConf.setMaxCon(maxCon);
 			hostConf.setMinCon(minCon);
 			hostConf.setBalance(balance);
